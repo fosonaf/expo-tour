@@ -1,0 +1,65 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Category {
+  id          String       @id @default(cuid())
+  name        String       @unique
+  slug        String       @unique
+  description String?
+  icon        String?
+  color       String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  
+  conventions Convention[]
+}
+
+model Convention {
+  id          String      @id @default(cuid())
+  name        String
+  slug        String      @unique
+  description String?
+  
+  // Localisation
+  city        String
+  region      String?
+  address     String?
+  postalCode  String?
+  country     String      @default("France")
+  
+  // Dates
+  startDate   DateTime
+  endDate     DateTime
+  
+  // Informations pratiques
+  website     String?
+  ticketUrl   String?
+  price       String?
+  
+  // Métadonnées
+  isPopular   Boolean     @default(false)
+  isVerified  Boolean     @default(false)
+  imageUrl    String?
+  
+  // Relations
+  categoryId  String
+  category    Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  
+  @@index([categoryId])
+  @@index([startDate])
+  @@index([city])
+  @@index([isPopular])
+}
+
