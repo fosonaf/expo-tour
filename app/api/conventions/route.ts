@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { ConventionQueryBuilder, ConventionFilters } from '@/lib/query-builders/convention-query-builder';
 
 const conventionSchema = z.object({
   name: z.string().min(1),
@@ -26,42 +27,127 @@ const conventionSchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const categoryId = searchParams.get('categoryId');
+    
+    // Construction des filtres
+    const filters: ConventionFilters = {};
+
+    // Filtres de localisation
     const city = searchParams.get('city');
+    const region = searchParams.get('region');
+    const country = searchParams.get('country');
+    const postalCode = searchParams.get('postalCode');
+
+    if (city) filters.city = city;
+    if (region) filters.region = region;
+    if (country) filters.country = country;
+    if (postalCode) filters.postalCode = postalCode;
+
+    // Filtres de dates
+    const startDateAfter = searchParams.get('startDateAfter');
+    const startDateBefore = searchParams.get('startDateBefore');
+    const endDateAfter = searchParams.get('endDateAfter');
+    const endDateBefore = searchParams.get('endDateBefore');
+    const dateBetweenStart = searchParams.get('dateBetweenStart');
+    const dateBetweenEnd = searchParams.get('dateBetweenEnd');
+
+    if (startDateAfter) filters.startDateAfter = startDateAfter;
+    if (startDateBefore) filters.startDateBefore = startDateBefore;
+    if (endDateAfter) filters.endDateAfter = endDateAfter;
+    if (endDateBefore) filters.endDateBefore = endDateBefore;
+    if (dateBetweenStart && dateBetweenEnd) {
+      filters.dateBetween = {
+        start: dateBetweenStart,
+        end: dateBetweenEnd,
+      };
+    }
+
+    // Autres filtres
+    const categoryId = searchParams.get('categoryId');
+    const categorySlug = searchParams.get('categorySlug');
     const upcoming = searchParams.get('upcoming') === 'true';
-    const popular = searchParams.get('popular') === 'true';
+    const past = searchParams.get('past') === 'true';
+    const popular = searchParams.get('popular');
+    const verified = searchParams.get('verified');
+    const search = searchParams.get('search');
 
-    const where: any = {};
+    if (categoryId) filters.categoryId = categoryId;
+    if (categorySlug) filters.categorySlug = categorySlug;
+    if (popular !== null) filters.isPopular = popular === 'true';
+    if (verified !== null) filters.isVerified = verified === 'true';
+    if (search) filters.search = search;
 
-    if (categoryId) {
-      where.categoryId = categoryId;
-    }
-
-    if (city) {
-      where.city = { contains: city, mode: 'insensitive' };
-    }
-
+    // Utilisation du QueryBuilder
+    const queryBuilder = new ConventionQueryBuilder();
+    
+    // Appliquer les filtres
+    queryBuilder.applyFilters(filters);
+    
+    // Filtres spéciaux (upcoming/past)
     if (upcoming) {
-      where.startDate = { gte: new Date() };
+      queryBuilder.filterUpcoming();
+    }
+    if (past) {
+      queryBuilder.filterPast();
     }
 
-    if (popular) {
-      where.isPopular = true;
+    // Paramètres de pagination et tri
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '50');
+    const skip = (page - 1) * limit;
+    const sortBy = searchParams.get('sortBy') || 'startDate';
+    const sortOrder = searchParams.get('sortOrder') === 'desc' ? 'desc' : 'asc';
+
+    // Construction du orderBy de manière type-safe
+    let orderBy: any = { startDate: 'asc' };
+    
+    switch (sortBy) {
+      case 'startDate':
+        orderBy = { startDate: sortOrder };
+        break;
+      case 'endDate':
+        orderBy = { endDate: sortOrder };
+        break;
+      case 'name':
+        orderBy = { name: sortOrder };
+        break;
+      case 'city':
+        orderBy = { city: sortOrder };
+        break;
+      case 'createdAt':
+        orderBy = { createdAt: sortOrder };
+        break;
+      default:
+        orderBy = { startDate: 'asc' };
     }
 
     const conventions = await prisma.convention.findMany({
-      where,
+      where: queryBuilder.build(),
       include: {
         category: true,
       },
-      orderBy: { startDate: 'asc' },
+      orderBy,
+      skip,
+      take: limit,
     });
 
-    return NextResponse.json(conventions);
+    // Compter le total pour la pagination
+    const total = await prisma.convention.count({
+      where: queryBuilder.build(),
+    });
+
+    return NextResponse.json({
+      data: conventions,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
   } catch (error) {
     console.error('Error fetching conventions:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch conventions' },
+      { error: 'Failed to fetch conventions', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }

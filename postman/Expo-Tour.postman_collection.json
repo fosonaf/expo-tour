@@ -1,0 +1,109 @@
+{
+	"info": {
+		"_postman_id": "expo-tour-api",
+		"name": "Expo Tour API",
+		"description": "Collection API pour Expo Tour - Répertoire des conventions et salons",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Conventions",
+			"item": [
+				{
+					"name": "Get All Conventions",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/conventions",
+							"host": ["{{base_url}}"],
+							"path": ["api", "conventions"]
+						}
+					}
+				},
+				{
+					"name": "Filter by City",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/conventions?city=Paris",
+							"host": ["{{base_url}}"],
+							"path": ["api", "conventions"],
+							"query": [{"key": "city", "value": "Paris"}]
+						}
+					}
+				},
+				{
+					"name": "Filter by Date Range",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/conventions?dateBetweenStart=2024-06-01&dateBetweenEnd=2024-08-31",
+							"host": ["{{base_url}}"],
+							"path": ["api", "conventions"],
+							"query": [
+								{"key": "dateBetweenStart", "value": "2024-06-01"},
+								{"key": "dateBetweenEnd", "value": "2024-08-31"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Upcoming Conventions",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/conventions?upcoming=true",
+							"host": ["{{base_url}}"],
+							"path": ["api", "conventions"],
+							"query": [{"key": "upcoming", "value": "true"}]
+						}
+					}
+				},
+				{
+					"name": "Create Convention",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Test Convention\",\n  \"slug\": \"test-convention\",\n  \"city\": \"Paris\",\n  \"country\": \"France\",\n  \"startDate\": \"2024-07-01T00:00:00.000Z\",\n  \"endDate\": \"2024-07-03T00:00:00.000Z\",\n  \"categoryId\": \"category-id\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/conventions",
+							"host": ["{{base_url}}"],
+							"path": ["api", "conventions"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Categories",
+			"item": [
+				{
+					"name": "Get All Categories",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/categories",
+							"host": ["{{base_url}}"],
+							"path": ["api", "categories"]
+						}
+					}
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:3000",
+			"type": "string"
+		}
+	]
+}

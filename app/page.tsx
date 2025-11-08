@@ -1,140 +1,137 @@
-import Link from 'next/link';
-import { prisma } from '@/lib/prisma';
+'use client';
 
-export default async function Home() {
-  // Récupérer les catégories et quelques conventions populaires
-  let categories = [];
-  let upcomingConventions = [];
+import { useState, useEffect } from 'react';
+import ConventionFilters, { FilterParams } from '@/components/ConventionFilters';
+import ConventionList from '@/components/ConventionList';
+import Pagination from '@/components/Pagination';
+import { ConventionResponse, Convention, Category } from '@/types/convention';
 
-  try {
-    categories = await prisma.category.findMany({
-      include: {
-        conventions: {
-          where: { isPopular: true },
-          take: 3,
-          orderBy: { startDate: 'asc' },
-        },
-      },
-      orderBy: { name: 'asc' },
-    });
+export default function Home() {
+  const [conventions, setConventions] = useState<Convention[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [filters, setFilters] = useState<FilterParams>({
+    page: 1,
+    limit: 12,
+    sortBy: 'startDate',
+    sortOrder: 'asc',
+    upcoming: true, // Par défaut, on affiche les conventions à venir
+  });
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 12,
+    total: 0,
+    totalPages: 0,
+  });
 
-    upcomingConventions = await prisma.convention.findMany({
-      where: {
-        startDate: {
-          gte: new Date(),
-        },
-      },
-      include: {
-        category: true,
-      },
-      take: 6,
-      orderBy: { startDate: 'asc' },
-    });
-  } catch (error) {
-    console.error('Error fetching data:', error);
-    // En cas d'erreur (ex: DB non configurée), on continue avec des tableaux vides
-  }
+  // Charger les catégories au montage
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  // Charger les conventions quand les filtres changent
+  useEffect(() => {
+    fetchConventions();
+  }, [filters]);
+
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch('/api/categories');
+      if (response.ok) {
+        const data = await response.json();
+        setCategories(data);
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  };
+
+  const fetchConventions = async () => {
+    setIsLoading(true);
+    try {
+      const params = new URLSearchParams();
+      
+      // Ajouter les filtres aux paramètres
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          if (key === 'upcoming' || key === 'popular' || key === 'verified') {
+            if (value === true) {
+              params.append(key, 'true');
+            }
+          } else {
+            params.append(key, String(value));
+          }
+        }
+      });
+
+      const response = await fetch(`/api/conventions?${params.toString()}`);
+      if (response.ok) {
+        const data: ConventionResponse = await response.json();
+        setConventions(data.data);
+        setPagination(data.pagination);
+      } else {
+        console.error('Error fetching conventions');
+      }
+    } catch (error) {
+      console.error('Error fetching conventions:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleFiltersChange = (newFilters: FilterParams) => {
+    setFilters(newFilters);
+  };
+
+  const handlePageChange = (page: number) => {
+    setFilters({ ...filters, page });
+  };
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+    <main className="min-h-screen bg-gray-900">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
+      <header className="bg-gray-800 border-b border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <h1 className="text-3xl font-bold text-gray-900">Expo Tour</h1>
-          <p className="text-gray-600 mt-2">Répertoire des conventions et salons</p>
+          <h1 className="text-4xl font-bold text-white mb-2">Expo Tour</h1>
+          <p className="text-gray-400">Répertoire des conventions et salons</p>
         </div>
       </header>
 
-      {/* Hero Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="text-center mb-12">
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Hero Section */}
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-bold text-white mb-4">
             Découvrez les conventions et salons
           </h2>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+          <p className="text-lg text-gray-400 max-w-2xl mx-auto">
             Explorez des centaines de conventions et salons par catégorie, 
             des grands événements aux salons locaux.
           </p>
         </div>
 
-        {/* Prochaines conventions */}
-        {upcomingConventions.length > 0 && (
-          <section className="mb-16">
-            <h3 className="text-2xl font-semibold text-gray-900 mb-6">
-              Prochaines conventions
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {upcomingConventions.map((convention) => (
-                <Link
-                  key={convention.id}
-                  href={`/conventions/${convention.slug}`}
-                  className="bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow p-6 border border-gray-200"
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="px-3 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded-full">
-                      {convention.category.name}
-                    </span>
-                    {convention.isVerified && (
-                      <span className="text-green-500" title="Vérifié">✓</span>
-                    )}
-                  </div>
-                  <h4 className="text-xl font-semibold text-gray-900 mb-2">
-                    {convention.name}
-                  </h4>
-                  <p className="text-gray-600 text-sm mb-4">
-                    {convention.city} - {convention.country}
-                  </p>
-                  <p className="text-gray-500 text-sm">
-                    {new Date(convention.startDate).toLocaleDateString('fr-FR', {
-                      day: 'numeric',
-                      month: 'long',
-                      year: 'numeric',
-                    })}
-                    {convention.endDate && new Date(convention.endDate).getTime() !== new Date(convention.startDate).getTime() && (
-                      <span>
-                        {' - '}
-                        {new Date(convention.endDate).toLocaleDateString('fr-FR', {
-                          day: 'numeric',
-                          month: 'long',
-                        })}
-                      </span>
-                    )}
-                  </p>
-                </Link>
-              ))}
-            </div>
-          </section>
+        {/* Filtres */}
+        <ConventionFilters
+          onFiltersChange={handleFiltersChange}
+          categories={categories}
+        />
+
+        {/* Résultats */}
+        {pagination.total > 0 && (
+          <div className="mb-4 text-sm text-gray-400">
+            {pagination.total} convention{pagination.total > 1 ? 's' : ''} trouvée{pagination.total > 1 ? 's' : ''}
+          </div>
         )}
 
-        {/* Catégories */}
-        <section>
-          <h3 className="text-2xl font-semibold text-gray-900 mb-6">
-            Par catégorie
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {categories.map((category) => (
-              <Link
-                key={category.id}
-                href={`/categories/${category.slug}`}
-                className="bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow p-6 border border-gray-200"
-              >
-                <h4 className="text-xl font-semibold text-gray-900 mb-2">
-                  {category.name}
-                </h4>
-                {category.description && (
-                  <p className="text-gray-600 text-sm mb-4">
-                    {category.description}
-                  </p>
-                )}
-                <p className="text-blue-600 text-sm font-medium">
-                  {category.conventions.length} convention{category.conventions.length > 1 ? 's' : ''} populaire{category.conventions.length > 1 ? 's' : ''}
-                </p>
-              </Link>
-            ))}
-          </div>
-        </section>
-      </section>
+        <ConventionList conventions={conventions} isLoading={isLoading} />
+
+        {pagination.totalPages > 1 && (
+          <Pagination
+            currentPage={pagination.page}
+            totalPages={pagination.totalPages}
+            onPageChange={handlePageChange}
+          />
+        )}
+      </div>
     </main>
   );
 }
-
