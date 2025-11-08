@@ -139,3 +139,4 @@ Utilisation de `grid-cols-1 md:grid-cols-2 lg:grid-cols-3` dans Tailwind.
 - [ ] Ajouter un système de favoris
 - [ ] Implémenter la géolocalisation pour trouver les conventions proches
 
+

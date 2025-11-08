@@ -94,3 +94,4 @@
 - Recherche : `search`, `categoryId`, `categorySlug`
 - Pagination : `page`, `limit`, `sortBy`, `sortOrder`
 
+
